@@ -8,9 +8,6 @@ from pydantic import BaseModel
 
 supabase = create_supabase_client()
 
-# data = supabase.from_("post").select("*").eq("id", 2).execute()
-
-# print("data:", data.data)
 app = FastAPI()
 
 origins = ["http://localhost:3000"]
@@ -84,7 +81,7 @@ class Bookmark:
 
 
 @app.get("/user")
-async def read_root():
+async def get_all_users():
     try:
         data = supabase.from_("User").select(
             "*,Tweet(*),Retweet(*),Like(*),Reply(*),Bookmark(*)").execute()
@@ -94,7 +91,7 @@ async def read_root():
 
 
 @app.get("/user/{user_id}")
-async def read_item(user_id: str, q: Union[str, None] = None):
+async def get_user_by_id(user_id: str):
     try:
         data = supabase.from_("User").select(
             "*,Tweet(*),Retweet(*),Like(*),Reply(*),Bookmark(*)").eq("id", user_id).single().execute()
@@ -102,12 +99,21 @@ async def read_item(user_id: str, q: Union[str, None] = None):
     except:
         return HTTPException(500, "Internal Server Error")
 
-
-@app.get("/tweet/{user_id}")
+ 
+@app.get("/tweetuser/{user_id}")
 async def get_tweet_of_user(user_id: str, q: Union[str, None] = None):
     try:
         data = supabase.from_("Tweet").select(
             "*,User(*)").eq("userId", user_id).execute()
+        return data.data
+    except:
+        return HTTPException(500, "Internal Server Error")
+
+@app.get("/tweet/{tweet_id}")
+async def get_tweet_by_id(tweet_id: str):
+    try:
+        data = supabase.from_("Tweet").select(
+            "*,User(*),Like(*),Reply(*)").eq("id", tweet_id).single().execute()
         return data.data
     except:
         return HTTPException(500, "Internal Server Error")
@@ -117,24 +123,32 @@ async def get_tweet_of_user(user_id: str, q: Union[str, None] = None):
 async def get_all_tweet():
     try:
         data = supabase.from_("Tweet").select(
-            "*,User(*)").execute()
+            "*,User(*),Like(*),Reply(*)").execute()
         return data.data
     except:
         return HTTPException(500, "Internal Server Error")
 
-func = supabase.functions()
-@app.get("/tweet/random")
-async def get_random_tweets(): 
+# func = supabase.functions()
+# @asyncio.coroutine
+
+
+@app.get("/tweet/random/")
+async def get_random_tweets():
     try:
-        data = func.invoke("get_random_tweet")
-        return data.data 
-    except: 
+        data = supabase.rpc("get_random_tweet")
+        return data.data
+    except:
         return HTTPException(500, "Internal Server Error")
 
-@app.post('/auth', response_model=User)
+# loop = asyncio.get_event_loop()
+# resp = loop.run_until_complete(get_random_tweets(loop))
+# loop.close()
+
+
+@app.post('/tweet', response_model=User)
 async def add_user(user: User):
     try:
         db_user = User(id=user.id, username=user.username)
-        supabase.from_("User").insert({"id": user.id}).execute()
+        supabase.from_("User").insert({id: user.id}).execute()
     except:
         return HTTPException(500, "Internal Server Error")
